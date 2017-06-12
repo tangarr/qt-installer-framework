@@ -30,6 +30,7 @@
 #define PACKAGEMANAGERCOREDATA_H
 
 #include "settings.h"
+#include "rsautils.h"
 
 namespace QInstaller {
 
@@ -42,6 +43,7 @@ public:
     void clear();
     void setDynamicPredefinedVariables();
 
+    RsaPublicKey &rsaPublicKey() const;
     Settings &settings() const;
     QStringList keys() const;
 
@@ -54,6 +56,7 @@ public:
 
 private:
     mutable Settings m_settings;
+    mutable RsaPublicKey m_rsaPublicKey;
     QHash<QString, QString> m_variables;
 };
 

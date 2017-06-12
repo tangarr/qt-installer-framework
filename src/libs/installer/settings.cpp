@@ -256,7 +256,7 @@ Settings Settings::fromFileAndPrefix(const QString &path, const QString &prefix,
                 << scWizardDefaultWidth << scWizardDefaultHeight
                 << scRepositorySettingsPageVisible << scTargetConfigurationFile
                 << scRemoteRepositories << scTranslations << scUrlQueryString << QLatin1String(scControlScript)
-                << scCreateLocalRepository << scInstallActionColumnVisible << scSupportsModify;
+                << scCreateLocalRepository << scInstallActionColumnVisible << scSupportsModify << scRsaPublicKey;
 
     Settings s;
     s.d->m_data.insert(scPrefix, prefix);
@@ -280,6 +280,9 @@ Settings Settings::fromFileAndPrefix(const QString &path, const QString &prefix,
         } else if (name == scRemoteRepositories) {
             s.addDefaultRepositories(readRepositories(reader, true, parseMode));
         } else {
+            if (name == scRsaPublicKey) {
+
+            }
             s.d->m_data.insert(name, reader.readElementText(QXmlStreamReader::SkipChildElements));
         }
     }

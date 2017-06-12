@@ -100,10 +100,18 @@ void MetadataJob::doStart()
                             url += m_core->value(scUrlQueryString) + QLatin1Char('&');
 
                         // also append a random string to avoid proxy caches
-                        FileTaskItem item(url.append(QString::number(qrand() * qrand())));
+                        auto randomNumber = QString::number(qrand() * qrand());
+                        FileTaskItem item(url.append(randomNumber));
                         item.insert(TaskRole::UserRole, QVariant::fromValue(repo));
                         item.insert(TaskRole::Authenticator, QVariant::fromValue(authenticator));
                         items.append(item);
+                        if (m_core->rsaPublicKey().isValid()) {
+                            url.replace(QLatin1String("/Updates.xml?"), QLatin1String("/Updates.xml.sign?"));
+                            FileTaskItem item(url);
+                            item.insert(TaskRole::UserRole, QVariant::fromValue(repo));
+                            item.insert(TaskRole::Authenticator, QVariant::fromValue(authenticator));
+                            items.append(item);
+                        }
                     }
                     else {
                         qDebug() << "Trying to parse compressed repo as normal repository."\
@@ -453,9 +461,23 @@ void MetadataJob::resetCompressedFetch()
 
 MetadataJob::Status MetadataJob::parseUpdatesXml(const QList<FileTaskResult> &results)
 {
+    QHash<QString, QString> signatures;
+
     foreach (const FileTaskResult &result, results) {
         if (error() != Job::NoError)
             return XmlDownloadFailure;
+        auto src = result.taskItem().source();
+        if (!src.contains(QLatin1String("/Updates.xml.sign?")))
+            continue;
+        src.replace(QLatin1String("/Updates.xml.sign?"), QLatin1String("/Updates.xml?"));
+        signatures.insert(src, result.target());
+    }
+
+
+    foreach (const FileTaskResult &result, results) {
+        auto src = result.taskItem().source();
+        if (src.contains(QLatin1String("/Updates.xml.sign?")))
+            continue;
 
         Metadata metadata;
         QTemporaryDir tmp(QDir::tempPath() + QLatin1String("/remoterepo-XXXXXX"));
@@ -472,6 +494,22 @@ MetadataJob::Status MetadataJob::parseUpdatesXml(const QList<FileTaskResult> &re
         if (!file.rename(metadata.directory + QLatin1String("/Updates.xml"))) {
             qDebug() << "Cannot rename target to Updates.xml:" << file.errorString();
             return XmlDownloadFailure;
+        }
+
+        if (m_core->rsaPublicKey().isValid()) {
+            if (!signatures.contains(result.taskItem().source())) {
+                qDebug() << "Signature for Updates.xml is missing";
+                return XmlDownloadFailure;
+            }
+            QFile signatureFile(signatures.value(result.taskItem().source()));
+            if (!signatureFile.rename(metadata.directory + QLatin1String("/Updates.xml.sign"))) {
+                qDebug() << "Cannot rename target to Updates.xml.sign:" << file.errorString();
+                return XmlDownloadFailure;
+            }
+            if (!m_core->rsaPublicKey().verify(file.fileName(), signatureFile.fileName())) {
+                qDebug() << "Unable to verify Update.xml:" << m_core->rsaPublicKey().errorString();
+                return XmlDownloadFailure;
+            }
         }
 
         if (!file.open(QIODevice::ReadOnly)) {

@@ -32,6 +32,7 @@
 #include "protocol.h"
 #include "repository.h"
 #include "qinstallerglobal.h"
+#include "rsautils.h"
 
 #include <QtCore/QHash>
 #include <QtCore/QObject>
@@ -244,6 +245,7 @@ public:
     Q_INVOKABLE bool isProcessRunning(const QString &name) const;
     Q_INVOKABLE bool killProcess(const QString &absoluteFilePath) const;
 
+    RsaPublicKey &rsaPublicKey() const;
     Settings &settings() const;
 
     Q_INVOKABLE bool addWizardPage(QInstaller::Component *component, const QString &name, int page);

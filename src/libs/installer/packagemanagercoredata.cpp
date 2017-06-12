@@ -66,7 +66,15 @@ PackageManagerCoreData::PackageManagerCoreData(const QHash<QString, QString> &va
 #endif
 
     m_settings = Settings::fromFileAndPrefix(QLatin1String(":/metadata/installer-config/config.xml"),
-        QLatin1String(":/metadata/installer-config/"), Settings::RelaxedParseMode);
+        QLatin1String(":/metadata/installer-config/"), Settings::RelaxedParseMode);    
+
+    if (m_settings.containsValue(scRsaPublicKey)) {
+        QFile keyFile(QString::fromLatin1(":/metadata/installer-config/")+m_settings.value(scRsaPublicKey).toString());
+        if (keyFile.open(QIODevice::ReadOnly)) {
+            auto data = keyFile.readAll();
+            m_rsaPublicKey = RsaPublicKey(data);
+        }
+    }
 
     // fill the variables defined in the settings
     m_variables.insert(QLatin1String("ProductName"), m_settings.applicationName());
@@ -161,6 +169,11 @@ void PackageManagerCoreData::setDynamicPredefinedVariables()
     m_variables.insert(QLatin1String("AllUsersStartMenuProgramsPath"),
         replaceWindowsEnvironmentVariables(allPrograms));
 #endif
+}
+
+RsaPublicKey &PackageManagerCoreData::rsaPublicKey() const
+{
+    return m_rsaPublicKey;
 }
 
 Settings &PackageManagerCoreData::settings() const

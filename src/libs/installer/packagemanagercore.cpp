@@ -1923,6 +1923,10 @@ bool PackageManagerCore::killProcess(const QString &absoluteFilePath) const
     return true;
 }
 
+RsaPublicKey &PackageManagerCore::rsaPublicKey() const
+{
+    return d->m_data.rsaPublicKey();
+}
 
 /*!
     Makes sure the installer runs from a local drive. Otherwise the user will get an

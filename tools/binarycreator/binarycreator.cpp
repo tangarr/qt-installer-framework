@@ -27,6 +27,8 @@
 **************************************************************************/
 #include "common/repositorygen.h"
 
+#include <memory>
+#include "rsautils.h"
 #include <qtpatch.h>
 
 #include <binarycontent.h>
@@ -761,6 +763,24 @@ int main(int argc, char **argv)
     try {
         const Settings settings = Settings::fromFileAndPrefix(configFile, QFileInfo(configFile)
             .absolutePath());
+
+        if (settings.containsValue(scRsaPublicKey)) {
+            auto publicKeyPath = settings.value(scRsaPublicKey).toString();
+            QFileInfo fileInfo(publicKeyPath);
+            if (!fileInfo.isAbsolute()) {
+                publicKeyPath = QDir(QFileInfo(configFile).absolutePath()).absoluteFilePath(publicKeyPath);
+            }
+            QFile publicKeyFile(publicKeyPath);
+            if (!publicKeyFile.exists()) {
+                return printErrorAndUsageAndExit(QString::fromLatin1("Error: RSA public key \"%1\" does not exists").arg(publicKeyPath));
+            }
+            if (!publicKeyFile.open(QIODevice::ReadOnly))
+                return printErrorAndUsageAndExit(QString::fromLatin1("Error: Unable to open RSA public key \"%1\": %2").arg(publicKeyPath).arg(publicKeyFile.errorString()));
+            auto data = publicKeyFile.readAll();
+            RsaPublicKey publicKey(data);
+            if (!publicKey.isValid())
+                return printErrorAndUsageAndExit(QString::fromLatin1("Error: Unable to read RSA public key \"%1\": %2").arg(publicKeyPath).arg(publicKey.errorString()));
+        }
 
         // Note: the order here is important
 

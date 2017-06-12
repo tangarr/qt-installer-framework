@@ -26,6 +26,7 @@
 **
 **************************************************************************/
 #include "common/repositorygen.h"
+#include "rsautils.h"
 
 #include <errors.h>
 #include <fileutils.h>
@@ -59,6 +60,8 @@ static void printUsage()
 
     std::cout << "  -r|--remove               Force removing target directory if existent." << std::endl;
 
+    std::cout << "  --sign file               Sign repository with RSA key." << std::endl;
+
     std::cout << "  --update                  Update a set of existing components (defined by " << std::endl;
     std::cout << "                            --include or --exclude) in the repository" << std::endl;
 
@@ -74,6 +77,16 @@ static void printUsage()
         << std::endl;
 }
 
+static void signFile(const QString &file, const QString &signature, RsaPrivateKey &privateKey) {
+    qInfo() << QLatin1String("Signing") << file;
+    if (!privateKey.sign(file, signature))
+        throw QInstaller::Error(privateKey.errorString());
+}
+
+static void signRepo(const QString &repoDir, RsaPrivateKey &privateKey) {
+    signFile(repoDir+QLatin1String("/Updates.xml"), repoDir+QLatin1String("/Updates.xml.sign"), privateKey);
+}
+
 static int printErrorAndUsageAndExit(const QString &err)
 {
     std::cerr << qPrintable(err) << std::endl << std::endl;
@@ -83,7 +96,7 @@ static int printErrorAndUsageAndExit(const QString &err)
 
 int main(int argc, char** argv)
 {
-    QString tmpMetaDir;
+    QString tmpMetaDir;    
     int exitCode = EXIT_FAILURE;
     try {
         QCoreApplication app(argc, argv);
@@ -99,6 +112,7 @@ int main(int argc, char** argv)
         QInstallerTools::FilterType filterType = QInstallerTools::Exclude;
         bool remove = false;
         bool updateExistingRepositoryWithNewComponents = false;
+        RsaPrivateKey rsaPrivateKey;
 
         //TODO: use a for loop without removing values from args like it is in binarycreator.cpp
         //for (QStringList::const_iterator it = args.begin(); it != args.end(); ++it) {
@@ -175,6 +189,28 @@ int main(int argc, char** argv)
                     args.removeFirst();
             } else if (args.first() == QLatin1String("-r") || args.first() == QLatin1String("--remove")) {
                 remove = true;
+                args.removeFirst();
+            } else if (args.first() == QLatin1String("--sign")) {
+                args.removeFirst();
+                if (args.isEmpty()) {
+                    return printErrorAndUsageAndExit(QCoreApplication::translate("QInstaller",
+                        "Error: Sign parameter missing argument"));
+                }
+                QFile privateKeyFile(args.first());
+                if (!privateKeyFile.exists()) {
+                    return printErrorAndUsageAndExit(QCoreApplication::translate("QInstaller",
+                        "Error: Invalid private key file \"%1\"").arg(args.first()));
+                }
+                if (!privateKeyFile.open(QIODevice::ReadOnly)) {
+                    return printErrorAndUsageAndExit(QCoreApplication::translate("QInstaller",
+                        "Error: Unable to open file \"%1\"").arg(args.first()));
+                }
+                auto data = privateKeyFile.readAll();
+                RsaPrivateKey privateKey(data);
+                if (!privateKey.isValid())
+                    return printErrorAndUsageAndExit(QString::fromLatin1("Failed to load private key: %1").arg(privateKey.errorString()));
+                rsaPrivateKey = std::move(privateKey);
+                qInfo() << "Private key loaded";
                 args.removeFirst();
             } else {
                 printUsage();
@@ -286,6 +322,9 @@ int main(int argc, char** argv)
             QFile::remove(it.fileInfo().absoluteFilePath());
         }
         QInstaller::moveDirectoryContents(tmpMetaDir, repositoryDir);
+        if (rsaPrivateKey.isValid()) {
+            signRepo(repositoryDir, rsaPrivateKey);
+        }
         exitCode = EXIT_SUCCESS;
     } catch (const Lib7z::SevenZipException &e) {
         std::cerr << "Caught 7zip exception: " << e.message() << std::endl;
