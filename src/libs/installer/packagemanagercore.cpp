@@ -932,7 +932,8 @@ PackageManagerCore::~PackageManagerCore()
         PlainVerboseWriterOutput plainOutput;
         if (!VerboseWriter::instance()->flush(&plainOutput)) {
             VerboseWriterAdminOutput adminOutput(this);
-            VerboseWriter::instance()->flush(&adminOutput);
+            if (RemoteClient::instance().isActive())
+                VerboseWriter::instance()->flush(&adminOutput);
         }
     } catch (...) {
         // Intentionally left blank; don't permit exceptions from VerboseWriter
