@@ -3097,6 +3097,7 @@ FinishedPage::FinishedPage(PackageManagerCore *core)
 */
 void FinishedPage::entering()
 {
+    bool hideRestartButton = false;
     m_msgLabel->setText(tr("Click %1 to exit the %2 Wizard.")
                         .arg(gui()->defaultButtonText(QWizard::FinishButton).remove(QLatin1Char('&')))
                         .arg(productName()));
@@ -3124,10 +3125,8 @@ void FinishedPage::entering()
                     this, &FinishedPage::cleanupChangedConnects);
         }
         setButtonText(QWizard::CommitButton, tr("Restart"));
-        auto restartButton = gui()->button(QWizard::CancelButton);
-        if (restartButton)
-            restartButton->setVisible(false);
         setButtonText(QWizard::CancelButton, gui()->defaultButtonText(QWizard::FinishButton));
+        hideRestartButton = true;
     } else {
         if (packageManagerCore()->isInstaller()) {
             m_commitButton = wizard()->button(QWizard::FinishButton);
@@ -3141,6 +3140,12 @@ void FinishedPage::entering()
     }
 
     gui()->updateButtonLayout();
+    auto restartButton = gui()->button(QWizard::CommitButton);
+    qWarning() << "Restart button:" << restartButton;
+    if (restartButton) {
+        restartButton->setEnabled(false);
+        restartButton->setVisible(false);
+    }
 
     if (m_commitButton) {
         disconnect(m_commitButton, &QAbstractButton::clicked, this, &FinishedPage::handleFinishClicked);
