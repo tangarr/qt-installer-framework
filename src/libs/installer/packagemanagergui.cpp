@@ -3124,6 +3124,9 @@ void FinishedPage::entering()
                     this, &FinishedPage::cleanupChangedConnects);
         }
         setButtonText(QWizard::CommitButton, tr("Restart"));
+        auto restartButton = gui()->button(QWizard::CancelButton);
+        if (restartButton)
+            restartButton->setVisible(false);
         setButtonText(QWizard::CancelButton, gui()->defaultButtonText(QWizard::FinishButton));
     } else {
         if (packageManagerCore()->isInstaller()) {
